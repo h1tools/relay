@@ -1,0 +1,187 @@
+import express, { Request, Response } from "express";
+import { WebSocketServer, WebSocket } from "ws";
+import http from "http";
+import logger from "./logger";
+import logo from "./utils/logo";
+import chalk from "chalk";
+import { APP_VERSION } from "./utils/consts";
+
+const app = express();
+app.use(express.json());
+
+const server = http.createServer(app);
+
+type MessageType = "message" | "ping";
+type ClientId = string;
+
+interface BroadcastRequest {
+  channelId: string | number;
+  messageType?: MessageType;
+  message?: any;
+}
+
+interface Listener {
+  ws: WebSocket;
+  channelId: string | number;
+  type: MessageType;
+}
+
+const listeners: Map<ClientId, Listener> = new Map();
+
+const getClientId = (ws: WebSocket) => (ws as any)._clientId as ClientId;
+
+// Periodic cleanup of stale connections
+setInterval(() => {
+  for (const [id, listener] of listeners.entries()) {
+    if (listener.ws.readyState !== WebSocket.OPEN) {
+      listeners.delete(id);
+      logger.info(
+        `Removed stale connection ${id} (channel=${listener.channelId}, type=${listener.type})`
+      );
+    }
+  }
+}, 10000);
+
+// -------------------- Broadcast Route --------------------
+app.post("/broadcast", (req: Request, res: Response) => {
+  const {
+    channelId,
+    messageType = "message",
+    message,
+  } = req.body as BroadcastRequest;
+
+  if (!channelId) {
+    logger.warn("Broadcast rejected: missing channelId");
+    return res.status(400).json({ error: "channelId is required" });
+  }
+
+  if (messageType === "message" && message === undefined) {
+    logger.warn("Broadcast rejected: message required for 'message' type");
+    return res
+      .status(400)
+      .json({ error: "message is required when messageType is 'message'" });
+  }
+
+  let sent = 0;
+  for (const [, listener] of listeners) {
+    if (listener.channelId == channelId && listener.type === messageType) {
+      if (listener.ws.readyState === WebSocket.OPEN) {
+        listener.ws.send(JSON.stringify({ channelId, messageType, message }));
+        sent++;
+      }
+    }
+  }
+
+  logger.info(
+    `Broadcasted to channel=${channelId}, type=${messageType}, recipients=${sent}`
+  );
+  res.json({ status: "ok", recipients: sent });
+});
+
+// -------------------- WebSocket: /listen --------------------
+const listenWSS = new WebSocketServer({ noServer: true });
+
+listenWSS.on("connection", (ws: WebSocket) => {
+  ws.on("message", (msg: Buffer) => {
+    try {
+      const { channelId } = JSON.parse(msg.toString());
+      if (!channelId) {
+        ws.send(JSON.stringify({ error: "channelId required" }));
+        return;
+      }
+
+      const clientId = `${channelId}-message-${Date.now()}-${Math.random()}`;
+      (ws as any)._clientId = clientId;
+
+      listeners.set(clientId, { ws, channelId, type: "message" });
+      ws.send(
+        JSON.stringify({ status: "subscribed", channelId, type: "message" })
+      );
+
+      logger.info(
+        `Client subscribed to channel=${channelId}, type=message, clientId=${clientId}`
+      );
+    } catch (err) {
+      logger.error(`Invalid subscription payload: ${err}`);
+      ws.send(JSON.stringify({ error: "Invalid subscription payload" }));
+    }
+  });
+
+  ws.on("close", () => {
+    const clientId = getClientId(ws);
+    if (clientId && listeners.has(clientId)) {
+      listeners.delete(clientId);
+      logger.info(`Client disconnected: ${clientId}`);
+    }
+  });
+});
+
+// -------------------- WebSocket: /ping --------------------
+const pingWSS = new WebSocketServer({ noServer: true });
+
+pingWSS.on("connection", (ws: WebSocket) => {
+  ws.on("message", (msg: Buffer) => {
+    try {
+      const { channelId } = JSON.parse(msg.toString());
+      if (!channelId) {
+        ws.send(JSON.stringify({ error: "channelId required" }));
+        return;
+      }
+
+      const clientId = `${channelId}-ping-${Date.now()}-${Math.random()}`;
+      (ws as any)._clientId = clientId;
+
+      listeners.set(clientId, { ws, channelId, type: "ping" });
+      ws.send(
+        JSON.stringify({ status: "subscribed", channelId, type: "ping" })
+      );
+
+      logger.info(
+        `Client subscribed to channel=${channelId}, type=ping, clientId=${clientId}`
+      );
+    } catch (err) {
+      logger.error(`Invalid subscription payload: ${err}`);
+      ws.send(JSON.stringify({ error: "Invalid subscription payload" }));
+    }
+  });
+
+  ws.on("close", () => {
+    const clientId = getClientId(ws);
+    if (clientId && listeners.has(clientId)) {
+      listeners.delete(clientId);
+      logger.info(`Client disconnected: ${clientId}`);
+    }
+  });
+});
+
+// -------------------- Upgrade Handling --------------------
+server.on("upgrade", (request, socket, head) => {
+  if (request.url === "/listen") {
+    listenWSS.handleUpgrade(request, socket, head, (ws) => {
+      listenWSS.emit("connection", ws, request);
+    });
+  } else if (request.url === "/ping") {
+    pingWSS.handleUpgrade(request, socket, head, (ws) => {
+      pingWSS.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// -------------------- Start Server --------------------
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  logo();
+  if (process.env.NODE_ENV === "development" || !!process.env.TS_NODE_DEV) {
+    logger.warn(
+      "Running in " +
+        chalk.yellow("DEVELOPMENT") +
+        " mode! Please, do not use this mode for production purposes!"
+    );
+  } else {
+    logger.info("Running in " + chalk.greenBright("PRODUCTION") + " mode");
+  }
+  logger.info("Running version " + chalk.cyan(APP_VERSION));
+  logger.info(`Server running on port ${chalk.magenta(PORT)}`);
+});
