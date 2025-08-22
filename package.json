@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start:foreground": "pm2 start dist/index.js --no-daemon",
+    "start:background": "pm2 start dist/index.js --name relay-app"
   },
   "dependencies": {
     "chalk": "^5.6.0",
     "express": "^4.19.2",
     "gradient-string": "^3.0.0",
+    "pm2": "^6.0.8",
     "winston": "^3.14.2",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.0"
