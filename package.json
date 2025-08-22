@@ -10,7 +10,8 @@
     "start:fg": "pm2 start dist/index.js --no-daemon",
     "start:bg": "pm2 start dist/index.js --name relay-app",
     "stop": "pm2 stop relay-app",
-    "restart": "pm2 restart relay-app"
+    "restart": "pm2 restart relay-app",
+    "enable-autostart": "pm2 startup && pm2 save"
   },
   "dependencies": {
     "chalk": "^5.6.0",
