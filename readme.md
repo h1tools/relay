@@ -17,25 +17,25 @@ It supports:
 ### 1. Install dependencies
 
 ```bash
-npm install
+yarn install
 ```
 
 ### 2. Run in development mode
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 ### 3. Build for production
 
 ```bash
-npm run build
+yarn build
 ```
 
 ### 4. Run production build
 
 ```bash
-npm start
+yarn start:fg
 ```
 
 The server runs by default on **http://localhost:3000**
@@ -53,7 +53,7 @@ curl -X POST http://localhost:3000/broadcast   -H "Content-Type: application/jso
 ### Broadcast a ping
 
 ```bash
-curl -X POST http://localhost:3000/broadcast   -H "Content-Type: application/json"   -d '{"channelId": "server-health", "messageType": "ping"}'
+curl -X POST http://localhost:3000/broadcast   -H "Content-Type: application/json"   -d '{"channelId": "server-health", "type": "ping"}'
 ```
 
 ---
@@ -108,15 +108,18 @@ The server automatically removes stale connections every **10 seconds** to preve
 ## 📂 Project Structure
 
 ```
-broadcast-server/
+relay/
 ├─ src/
+│  ├─ utils/          # Utilities
+│  │  ├─ consts.ts    # Constants
+│  │  └─ logo.ts      # Display logo
 │  ├─ index.ts        # Main server
-│  ├─ logger.ts       # Logging setup
+│  └─ logger.ts       # Logging setup
 ├─ logs/              # Log files (auto-created)
 ├─ package.json
 ├─ tsconfig.json
 ├─ README.md
-├─ .gitignore
+└─ .gitignore
 ```
 
 ---
