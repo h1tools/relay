@@ -5,6 +5,7 @@ import logger from "./logger";
 import logo from "./utils/logo";
 import chalk from "chalk";
 import { APP_VERSION } from "./utils/consts";
+import { nanoid } from "./utils/nanoid";
 
 const app = express();
 app.use(express.json());
@@ -24,6 +25,8 @@ interface Listener {
   ws: WebSocket;
   channelId: string | number;
   type: MessageType;
+  uuid: string;
+  timestamp: number;
 }
 
 const listeners: Map<ClientId, Listener> = new Map();
@@ -89,7 +92,13 @@ listenWSS.on("connection", (ws: WebSocket) => {
       const clientId = `${channelId}-message-${Date.now()}-${Math.random()}`;
       (ws as any)._clientId = clientId;
 
-      listeners.set(clientId, { ws, channelId, type: "message" });
+      listeners.set(clientId, {
+        ws,
+        channelId,
+        type: "message",
+        uuid: nanoid(),
+        timestamp: Math.floor(Date.now() / 1000),
+      });
       ws.send(
         JSON.stringify({ status: "subscribed", channelId, type: "message" })
       );
@@ -127,7 +136,13 @@ pingWSS.on("connection", (ws: WebSocket) => {
       const clientId = `${channelId}-ping-${Date.now()}-${Math.random()}`;
       (ws as any)._clientId = clientId;
 
-      listeners.set(clientId, { ws, channelId, type: "ping" });
+      listeners.set(clientId, {
+        ws,
+        channelId,
+        type: "ping",
+        uuid: nanoid(),
+        timestamp: Math.floor(Date.now() / 1000),
+      });
       ws.send(
         JSON.stringify({ status: "subscribed", channelId, type: "ping" })
       );

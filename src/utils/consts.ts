@@ -9,3 +9,6 @@ export const APP_VERSION: string = packageJson.version;
 
 export const isDev =
   process.env.NODE_ENV === "development" || !!process.env.TS_NODE_DEV;
+
+export const urlAlphabet =
+  "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
