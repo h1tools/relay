@@ -16,7 +16,7 @@ type ClientId = string;
 
 interface BroadcastRequest {
   channelId: string | number;
-  messageType?: MessageType;
+  type?: MessageType;
   message?: any;
 }
 
@@ -44,18 +44,14 @@ setInterval(() => {
 
 // -------------------- Broadcast Route --------------------
 app.post("/broadcast", (req: Request, res: Response) => {
-  const {
-    channelId,
-    messageType = "message",
-    message,
-  } = req.body as BroadcastRequest;
+  const { channelId, type = "message", message } = req.body as BroadcastRequest;
 
   if (!channelId) {
     logger.warn("Broadcast rejected: missing channelId");
     return res.status(400).json({ error: "channelId is required" });
   }
 
-  if (messageType === "message" && message === undefined) {
+  if (type === "message" && message === undefined) {
     logger.warn("Broadcast rejected: message required for 'message' type");
     return res
       .status(400)
@@ -64,16 +60,16 @@ app.post("/broadcast", (req: Request, res: Response) => {
 
   let sent = 0;
   for (const [, listener] of listeners) {
-    if (listener.channelId == channelId && listener.type === messageType) {
+    if (listener.channelId == channelId && listener.type === type) {
       if (listener.ws.readyState === WebSocket.OPEN) {
-        listener.ws.send(JSON.stringify({ channelId, messageType, message }));
+        listener.ws.send(JSON.stringify({ channelId, type, message }));
         sent++;
       }
     }
   }
 
   logger.info(
-    `Broadcasted to channel=${channelId}, type=${messageType}, recipients=${sent}`
+    `Broadcasted to channel=${channelId}, type=${type}, recipients=${sent}`
   );
   res.json({ status: "ok", recipients: sent });
 });
