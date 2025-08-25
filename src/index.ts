@@ -65,7 +65,15 @@ app.post("/broadcast", (req: Request, res: Response) => {
   for (const [, listener] of listeners) {
     if (listener.channelId == channelId && listener.type === type) {
       if (listener.ws.readyState === WebSocket.OPEN) {
-        listener.ws.send(JSON.stringify({ channelId, type, message }));
+        listener.ws.send(
+          JSON.stringify({
+            channelId,
+            type,
+            message,
+            uuid: nanoid(),
+            timestamp: Math.floor(Date.now() / 1000),
+          })
+        );
         sent++;
       }
     }
@@ -85,7 +93,13 @@ listenWSS.on("connection", (ws: WebSocket) => {
     try {
       const { channelId } = JSON.parse(msg.toString());
       if (!channelId) {
-        ws.send(JSON.stringify({ error: "channelId required" }));
+        ws.send(
+          JSON.stringify({
+            error: "channelId required",
+            uuid: nanoid(),
+            timestamp: Math.floor(Date.now() / 1000),
+          })
+        );
         return;
       }
 
@@ -100,7 +114,13 @@ listenWSS.on("connection", (ws: WebSocket) => {
         timestamp: Math.floor(Date.now() / 1000),
       });
       ws.send(
-        JSON.stringify({ status: "subscribed", channelId, type: "message" })
+        JSON.stringify({
+          status: "subscribed",
+          channelId,
+          type: "message",
+          uuid: nanoid(),
+          timestamp: Math.floor(Date.now() / 1000),
+        })
       );
 
       logger.info(
@@ -108,7 +128,13 @@ listenWSS.on("connection", (ws: WebSocket) => {
       );
     } catch (err) {
       logger.error(`Invalid subscription payload: ${err}`);
-      ws.send(JSON.stringify({ error: "Invalid subscription payload" }));
+      ws.send(
+        JSON.stringify({
+          error: "Invalid subscription payload",
+          uuid: nanoid(),
+          timestamp: Math.floor(Date.now() / 1000),
+        })
+      );
     }
   });
 
@@ -129,7 +155,13 @@ pingWSS.on("connection", (ws: WebSocket) => {
     try {
       const { channelId } = JSON.parse(msg.toString());
       if (!channelId) {
-        ws.send(JSON.stringify({ error: "channelId required" }));
+        ws.send(
+          JSON.stringify({
+            error: "channelId required",
+            uuid: nanoid(),
+            timestamp: Math.floor(Date.now() / 1000),
+          })
+        );
         return;
       }
 
@@ -144,7 +176,13 @@ pingWSS.on("connection", (ws: WebSocket) => {
         timestamp: Math.floor(Date.now() / 1000),
       });
       ws.send(
-        JSON.stringify({ status: "subscribed", channelId, type: "ping" })
+        JSON.stringify({
+          status: "subscribed",
+          channelId,
+          type: "ping",
+          uuid: nanoid(),
+          timestamp: Math.floor(Date.now() / 1000),
+        })
       );
 
       logger.info(
@@ -152,7 +190,13 @@ pingWSS.on("connection", (ws: WebSocket) => {
       );
     } catch (err) {
       logger.error(`Invalid subscription payload: ${err}`);
-      ws.send(JSON.stringify({ error: "Invalid subscription payload" }));
+      ws.send(
+        JSON.stringify({
+          error: "Invalid subscription payload",
+          uuid: nanoid(),
+          timestamp: Math.floor(Date.now() / 1000),
+        })
+      );
     }
   });
 
