@@ -6,9 +6,14 @@ import logo from "./utils/logo";
 import chalk from "chalk";
 import { APP_VERSION } from "./utils/consts";
 import { nanoid } from "./utils/nanoid";
+import fetch from "node-fetch";
+import { pipeline } from "stream";
+import { promisify } from "util";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const server = http.createServer(app);
 
@@ -239,4 +244,49 @@ server.listen(PORT, () => {
   }
   logger.info("Running version " + chalk.cyan(APP_VERSION));
   logger.info(`Server running on port ${chalk.magenta(PORT)}`);
+});
+
+// -------------------- Proxy File Route --------------------
+const streamPipeline = promisify(pipeline);
+app.get("/proxy-file", async (req: Request, res: Response) => {
+  const fileUrl = req.query.url as string;
+
+  // ✅ Always allow CORS for this route
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204); // Handle preflight
+  }
+
+  if (!fileUrl) {
+    return res.status(400).json({ error: "Missing 'url' query parameter" });
+  }
+
+  try {
+    const response = await fetch(fileUrl);
+
+    if (!response.ok) {
+      return res
+        .status(response.status)
+        .json({ error: `Failed to fetch file: ${response.statusText}` });
+    }
+
+    // Mirror content headers
+    const contentType =
+      response.headers.get("content-type") || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+
+    const disposition = response.headers.get("content-disposition");
+    if (disposition) {
+      res.setHeader("Content-Disposition", disposition);
+    }
+
+    // ✅ Stream file without loading it into memory
+    await streamPipeline(response.body as any, res);
+  } catch (err: any) {
+    logger.error(`Proxy error: ${err.message}`);
+    res.status(500).json({ error: "Error fetching remote file" });
+  }
 });
