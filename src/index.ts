@@ -15,6 +15,15 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// -------------------- health check: /status --------------------
+app.get("/status", (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+  });
+});
+
 const server = http.createServer(app);
 
 type MessageType = "message" | "ping";
@@ -38,7 +47,7 @@ const listeners: Map<ClientId, Listener> = new Map();
 
 const getClientId = (ws: WebSocket) => (ws as any)._clientId as ClientId;
 
-// Periodic cleanup of stale connections
+// periodic cleanup of stale connections
 setInterval(() => {
   for (const [id, listener] of listeners.entries()) {
     if (listener.ws.readyState !== WebSocket.OPEN) {
@@ -50,7 +59,7 @@ setInterval(() => {
   }
 }, 10000);
 
-// -------------------- Broadcast Route --------------------
+// -------------------- broadcast route --------------------
 app.post("/broadcast", (req: Request, res: Response) => {
   const { channelId, type = "message", message } = req.body as BroadcastRequest;
 
@@ -214,7 +223,7 @@ pingWSS.on("connection", (ws: WebSocket) => {
   });
 });
 
-// -------------------- Upgrade Handling --------------------
+// -------------------- upgrade handling --------------------
 server.on("upgrade", (request, socket, head) => {
   if (request.url === "/listen") {
     listenWSS.handleUpgrade(request, socket, head, (ws) => {
@@ -229,7 +238,7 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
-// -------------------- Start Server --------------------
+// -------------------- start server --------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   logo();
@@ -246,18 +255,18 @@ server.listen(PORT, () => {
   logger.info(`Server running on port ${chalk.magenta(PORT)}`);
 });
 
-// -------------------- Proxy File Route --------------------
+// -------------------- proxy file route --------------------
 const streamPipeline = promisify(pipeline);
 app.get("/proxy-file", async (req: Request, res: Response) => {
   const fileUrl = req.query.url as string;
 
-  // ✅ Always allow CORS for this route
+  // always allow CORS for this route
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
-    return res.sendStatus(204); // Handle preflight
+    return res.sendStatus(204); // handle preflight
   }
 
   if (!fileUrl) {
@@ -273,7 +282,7 @@ app.get("/proxy-file", async (req: Request, res: Response) => {
         .json({ error: `Failed to fetch file: ${response.statusText}` });
     }
 
-    // Mirror content headers
+    // mirror content headers
     const contentType =
       response.headers.get("content-type") || "application/octet-stream";
     res.setHeader("Content-Type", contentType);
@@ -283,7 +292,7 @@ app.get("/proxy-file", async (req: Request, res: Response) => {
       res.setHeader("Content-Disposition", disposition);
     }
 
-    // ✅ Stream file without loading it into memory
+    // stream file without loading it into memory
     await streamPipeline(response.body as any, res);
   } catch (err: any) {
     logger.error(`Proxy error: ${err.message}`);
