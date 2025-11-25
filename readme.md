@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="RELAY cover image" title="RELAY cover image" src="assets/relay.png" />
+</p>
+
 # RELAY
 
 A simple **Node.js + Express + TypeScript** server that allows broadcasting messages or pings to specific channels via HTTP, and listening for them via WebSockets.  
@@ -9,6 +13,7 @@ It supports:
 - **WS /listen** → subscribe to `"message"` type broadcasts
 - **WS /ping** → subscribe to `"ping"` type broadcasts
 - **GET /proxy-file?url=...** → fetch and return a remote file (with CORS headers)
+- **GET /status** → simple health check endpoint (uptime & timestamp)
 - Logging with **daily log rotation** using Winston
 - Automatic cleanup of stale WebSocket connections
 
