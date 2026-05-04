@@ -15,6 +15,29 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// security middleware to prevent path traversal and access to .env files
+app.use((req, res, next) => {
+  let decodedUrl = req.originalUrl;
+  try {
+    decodedUrl = decodeURIComponent(req.originalUrl);
+  } catch (e) {
+    // ignore malformed URIs
+  }
+
+  if (
+    decodedUrl.includes("..") ||
+    req.path.includes("..") ||
+    decodedUrl.includes(".env") ||
+    req.path.includes(".env")
+  ) {
+    res.status(403).json({
+      error: "Forbidden: Path traversal or hidden file access denied",
+    });
+    return;
+  }
+  next();
+});
+
 // -------------------- health check: /status --------------------
 app.get("/status", (_req: Request, res: Response) => {
   res.status(200).json({
@@ -53,7 +76,7 @@ setInterval(() => {
     if (listener.ws.readyState !== WebSocket.OPEN) {
       listeners.delete(id);
       logger.info(
-        `Removed stale connection ${id} (channel=${listener.channelId}, type=${listener.type})`
+        `Removed stale connection ${id} (channel=${listener.channelId}, type=${listener.type})`,
       );
     }
   }
@@ -86,7 +109,7 @@ app.post("/broadcast", (req: Request, res: Response) => {
             message,
             uuid: nanoid(),
             timestamp: Math.floor(Date.now() / 1000),
-          })
+          }),
         );
         sent++;
       }
@@ -94,7 +117,7 @@ app.post("/broadcast", (req: Request, res: Response) => {
   }
 
   logger.info(
-    `Broadcasted to channel=${channelId}, type=${type}, recipients=${sent}`
+    `Broadcasted to channel=${channelId}, type=${type}, recipients=${sent}`,
   );
   res.json({ status: "ok", recipients: sent });
 });
@@ -112,7 +135,7 @@ listenWSS.on("connection", (ws: WebSocket) => {
             error: "channelId required",
             uuid: nanoid(),
             timestamp: Math.floor(Date.now() / 1000),
-          })
+          }),
         );
         return;
       }
@@ -134,11 +157,11 @@ listenWSS.on("connection", (ws: WebSocket) => {
           type: "message",
           uuid: nanoid(),
           timestamp: Math.floor(Date.now() / 1000),
-        })
+        }),
       );
 
       logger.info(
-        `Client subscribed to channel=${channelId}, type=message, clientId=${clientId}`
+        `Client subscribed to channel=${channelId}, type=message, clientId=${clientId}`,
       );
     } catch (err) {
       logger.error(`Invalid subscription payload: ${err}`);
@@ -147,7 +170,7 @@ listenWSS.on("connection", (ws: WebSocket) => {
           error: "Invalid subscription payload",
           uuid: nanoid(),
           timestamp: Math.floor(Date.now() / 1000),
-        })
+        }),
       );
     }
   });
@@ -174,7 +197,7 @@ pingWSS.on("connection", (ws: WebSocket) => {
             error: "channelId required",
             uuid: nanoid(),
             timestamp: Math.floor(Date.now() / 1000),
-          })
+          }),
         );
         return;
       }
@@ -196,11 +219,11 @@ pingWSS.on("connection", (ws: WebSocket) => {
           type: "ping",
           uuid: nanoid(),
           timestamp: Math.floor(Date.now() / 1000),
-        })
+        }),
       );
 
       logger.info(
-        `Client subscribed to channel=${channelId}, type=ping, clientId=${clientId}`
+        `Client subscribed to channel=${channelId}, type=ping, clientId=${clientId}`,
       );
     } catch (err) {
       logger.error(`Invalid subscription payload: ${err}`);
@@ -209,7 +232,7 @@ pingWSS.on("connection", (ws: WebSocket) => {
           error: "Invalid subscription payload",
           uuid: nanoid(),
           timestamp: Math.floor(Date.now() / 1000),
-        })
+        }),
       );
     }
   });
@@ -246,7 +269,7 @@ server.listen(PORT, () => {
     logger.warn(
       "Running in " +
         chalk.yellow("DEVELOPMENT") +
-        " mode! Please, do not use this mode for production purposes!"
+        " mode! Please, do not use this mode for production purposes!",
     );
   } else {
     logger.info("Running in " + chalk.greenBright("PRODUCTION") + " mode");
